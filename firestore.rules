@@ -1,0 +1,129 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 3. Primitive Helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+    
+    function incoming() {
+      return request.resource.data;
+    }
+    
+    function existing() {
+      return resource.data;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    // 2. Validation Blueprints
+    
+    function isValidUser(data) {
+      return data.keys().hasAll(['displayName']) &&
+             data.keys().size() <= 4 &&
+             data.displayName is string &&
+             data.displayName.size() > 0 &&
+             data.displayName.size() <= 100 &&
+             (!('email' in data) || (data.email is string && data.email.size() <= 200)) &&
+             (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 1000)) &&
+             (!('updatedAt' in data) || data.updatedAt == request.time);
+    }
+
+    function isValidCartItem(data) {
+      return data.keys().hasAll(['productId', 'name', 'price']) &&
+             data.keys().size() <= 5 &&
+             data.productId is string && data.productId.size() <= 64 &&
+             data.name is string && data.name.size() <= 200 &&
+             data.price is number && data.price >= 0 &&
+             (!('image' in data) || (data.image is string && data.image.size() <= 1000)) &&
+             (!('addedAt' in data) || data.addedAt == request.time);
+    }
+
+    function isValidOrder(data) {
+      return data.keys().hasAll(['userId', 'items', 'total', 'status']) &&
+             data.keys().size() <= 6 &&
+             data.userId == request.auth.uid &&
+             data.items is list &&
+             data.items.size() > 0 &&
+             data.total is number && data.total >= 0 &&
+             data.status in ['pending', 'shipped', 'delivered', 'cancelled'] &&
+             (!('createdAt' in data) || data.createdAt == request.time);
+    }
+
+    function isValidChatThread(data, userId) {
+      return data.keys().hasAll(['userId', 'userName', 'status']) &&
+             data.userId == userId &&
+             data.status in ['active', 'closed'] &&
+             (!('unreadCount' in data) || data.unreadCount is number);
+    }
+
+    function isValidChatMessage(data) {
+      return data.keys().hasAll(['senderId', 'text', 'createdAt']) &&
+             data.senderId == request.auth.uid &&
+             data.text is string && data.text.size() <= 2000 &&
+             data.createdAt == request.time;
+    }
+
+    // Collection Rules
+
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && isValidUser(incoming());
+      allow update: if isOwner(userId) && 
+                      isValidUser(incoming()) && 
+                      incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'updatedAt']);
+      
+      match /cart/{itemId} {
+        allow list, get: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidCartItem(incoming()) && isValidId(itemId);
+        allow update: if isOwner(userId) && 
+                        isValidCartItem(incoming()) && 
+                        incoming().diff(existing()).affectedKeys().hasOnly(['addedAt']) &&
+                        incoming().productId == existing().productId; // Immobilize productId
+        allow delete: if isOwner(userId);
+      }
+    }
+
+    match /orders/{orderId} {
+      allow list: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow get: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isSignedIn() && isValidOrder(incoming()) && isValidId(orderId);
+      allow update: if isAdmin(); // Only admins can update order status
+      allow delete: if false; // Orders are immutable once placed
+    }
+
+    match /chatThreads/{userId} {
+      allow list: if isAdmin();
+      allow get: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && isValidChatThread(incoming(), userId);
+      allow update: if isAdmin() || isOwner(userId); // Admins/Users update metadata
+
+      match /messages/{messageId} {
+        allow list, get: if isOwner(userId) || isAdmin();
+        allow create: if (isOwner(userId) || isAdmin()) && isValidChatMessage(incoming());
+      }
+    }
+
+    match /admins/{uid} {
+      allow read: if isSignedIn();
+      allow write: if false; // Admins must be provisioned via console/script
+    }
+  }
+}

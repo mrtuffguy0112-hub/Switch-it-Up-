@@ -1,0 +1,36 @@
+@import url('https://fonts.googleapis.com/css2?family=Anton&family=Outfit:wght@400;600;700;900&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Anton", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --color-switch-red: #E60012;
+  --color-switch-blue: #00A1E9;
+  --color-switch-bg: #F8F8F8;
+  --color-switch-dark: #121212;
+  --color-switch-glass: rgba(255, 255, 255, 0.8);
+}
+
+@layer base {
+  body {
+    @apply bg-switch-bg text-switch-dark font-sans selection:bg-switch-red/20 selection:text-switch-red;
+  }
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.switch-gradient {
+  background: linear-gradient(135deg, var(--color-switch-red) 0%, var(--color-switch-blue) 100%);
+}
+
+.glass-morphism {
+  @apply backdrop-blur-md bg-white/70 border border-white/20;
+}

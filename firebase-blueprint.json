@@ -1,0 +1,103 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Public profile for Switch It Up users.",
+      "type": "object",
+      "properties": {
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["displayName"]
+    },
+    "CartItem": {
+      "title": "Cart Item",
+      "description": "An item saved in a user's digital shopping bag.",
+      "type": "object",
+      "properties": {
+        "productId": { "type": "string" },
+        "name": { "type": "string" },
+        "price": { "type": "number" },
+        "image": { "type": "string" },
+        "addedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["productId", "name", "price"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "A completed purchase order.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "items": { "type": "array" },
+        "total": { "type": "number" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "items", "total", "status"]
+    },
+    "Admin": {
+      "title": "Admin Record",
+      "description": "A record indicating that a user has admin privileges.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" }
+      },
+      "required": ["uid"]
+    },
+    "ChatThread": {
+      "title": "Chat Thread",
+      "description": "A top-level conversation entry.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "lastMessage": { "type": "string" },
+        "lastMessageAt": { "type": "string", "format": "date-time" },
+        "unreadCount": { "type": "number" },
+        "status": { "type": "string", "enum": ["active", "closed"] }
+      },
+      "required": ["userId", "userName", "status"]
+    },
+    "ChatMessage": {
+      "title": "Chat Message",
+      "description": "An individual message within a thread.",
+      "type": "object",
+      "properties": {
+        "senderId": { "type": "string" },
+        "senderName": { "type": "string" },
+        "text": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "isAdmin": { "type": "boolean" }
+      },
+      "required": ["senderId", "text", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles stored by UID."
+    },
+    "/users/{userId}/cart/{itemId}": {
+      "schema": "CartItem",
+      "description": "User specific shopping cart subcollection."
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Global orders collection."
+    },
+    "/admins/{uid}": {
+      "schema": "Admin",
+      "description": "List of admin UIDs."
+    },
+    "/chatThreads/{userId}": {
+      "schema": "ChatThread",
+      "description": "Main chat threads per user."
+    },
+    "/chatThreads/{userId}/messages/{messageId}": {
+      "schema": "ChatMessage",
+      "description": "Messages within a user's thread."
+    }
+  }
+}
